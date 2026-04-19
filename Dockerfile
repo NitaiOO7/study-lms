@@ -29,10 +29,10 @@ RUN mkdir -p database && touch database/database.sqlite
 RUN chmod -R 775 storage bootstrap/cache
 
 # Generate app key
-RUN php artisan key:generate
+# RUN php artisan key:generate
 
 # Run migrations
-RUN php artisan migrate --force
+# RUN php artisan migrate --force
 
 # Expose port
 EXPOSE 10000
