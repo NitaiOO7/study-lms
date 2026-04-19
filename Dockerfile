@@ -28,14 +28,12 @@ RUN mkdir -p database && touch database/database.sqlite
 # Permissions
 RUN chmod -R 775 storage bootstrap/cache
 
-# Generate app key
-# RUN php artisan key:generate
-
-# Run migrations
-# RUN php artisan migrate --force
+# Copy entrypoint script
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Expose port
 EXPOSE 10000
 
-# Start Laravel server
-CMD php -S 0.0.0.0:10000 -t public
+# Start Laravel using entrypoint script
+CMD ["/usr/local/bin/entrypoint.sh"]
