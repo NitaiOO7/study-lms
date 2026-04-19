@@ -18,9 +18,9 @@ class DatabaseSeeder extends Seeder
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         // Create Roles
-        $adminRole = Role::create(['name' => 'admin']);
-        $teacherRole = Role::create(['name' => 'teacher']);
-        $studentRole = Role::create(['name' => 'student']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $teacherRole = Role::firstOrCreate(['name' => 'teacher']);
+        $studentRole = Role::firstOrCreate(['name' => 'student']);
 
         // Create Permissions
         $permissions = [
@@ -31,7 +31,7 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission]);
         }
 
         // Assign permissions
@@ -45,32 +45,44 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Create Admin User
-        $admin = User::create([
-            'name' => 'Admin',
-            'email' => 'admin@lms.com',
-            'password' => bcrypt('password'),
-            'email_verified_at' => now(),
-        ]);
-        $admin->assignRole('admin');
+        $admin = User::firstOrCreate(
+            ['email' => 'admin@lms.com'],
+            [
+                'name' => 'Admin',
+                'password' => bcrypt('password'),
+                'email_verified_at' => now(),
+            ]
+        );
+        if (!$admin->hasRole('admin')) {
+            $admin->assignRole('admin');
+        }
 
         // Create Demo Teacher
-        $teacher = User::create([
-            'name' => 'Demo Teacher',
-            'email' => 'teacher@lms.com',
-            'password' => bcrypt('password'),
-            'email_verified_at' => now(),
-            'bio' => 'Experienced educator with 10+ years of teaching.',
-        ]);
-        $teacher->assignRole('teacher');
+        $teacher = User::firstOrCreate(
+            ['email' => 'teacher@lms.com'],
+            [
+                'name' => 'Demo Teacher',
+                'password' => bcrypt('password'),
+                'email_verified_at' => now(),
+                'bio' => 'Experienced educator with 10+ years of teaching.',
+            ]
+        );
+        if (!$teacher->hasRole('teacher')) {
+            $teacher->assignRole('teacher');
+        }
 
         // Create Demo Student
-        $student = User::create([
-            'name' => 'Demo Student',
-            'email' => 'student@lms.com',
-            'password' => bcrypt('password'),
-            'email_verified_at' => now(),
-        ]);
-        $student->assignRole('student');
+        $student = User::firstOrCreate(
+            ['email' => 'student@lms.com'],
+            [
+                'name' => 'Demo Student',
+                'password' => bcrypt('password'),
+                'email_verified_at' => now(),
+            ]
+        );
+        if (!$student->hasRole('student')) {
+            $student->assignRole('student');
+        }
 
         // Create Subjects — All levels
         $subjectData = [
@@ -140,38 +152,44 @@ class DatabaseSeeder extends Seeder
 
         foreach ($subjectData as $subject) {
             $slug = Str::slug($subject['name'] . '-' . $subject['level']);
-            Subject::create([
-                'name' => $subject['name'],
-                'slug' => $slug,
-                'icon' => $subject['icon'],
-                'level' => $subject['level'],
-                'description' => $subject['name'] . ' - ' . strtoupper($subject['level']) . ' Level',
-                'is_active' => true,
-            ]);
+            Subject::updateOrCreate(
+                ['slug' => $slug],
+                [
+                    'name' => $subject['name'],
+                    'icon' => $subject['icon'],
+                    'level' => $subject['level'],
+                    'description' => $subject['name'] . ' - ' . strtoupper($subject['level']) . ' Level',
+                    'is_active' => true,
+                ]
+            );
         }
 
         // Create Universal Forum Group
-        ForumGroup::create([
-            'name' => 'Universal Group',
-            'slug' => 'universal-group',
-            'description' => 'A universal discussion group for all students across all subjects. Post any question, share answers, and connect with peers.',
-            'is_universal' => true,
-            'is_active' => true,
-        ]);
+        ForumGroup::updateOrCreate(
+            ['slug' => 'universal-group'],
+            [
+                'name' => 'Universal Group',
+                'description' => 'A universal discussion group for all students across all subjects. Post any question, share answers, and connect with peers.',
+                'is_universal' => true,
+                'is_active' => true,
+            ]
+        );
 
         // Create Subject-specific Forum Groups (one per unique subject name)
         $uniqueSubjects = Subject::select('name')->distinct()->pluck('name');
         foreach ($uniqueSubjects as $subjectName) {
             $subject = Subject::where('name', $subjectName)->first();
-            ForumGroup::create([
-                'name' => $subjectName . ' Discussion',
-                'slug' => Str::slug($subjectName . '-discussion'),
-                'description' => 'Discussion forum for ' . $subjectName . ' students.',
-                'subject_id' => $subject->id,
-                'icon' => $subject->icon,
-                'is_universal' => false,
-                'is_active' => true,
-            ]);
+            ForumGroup::updateOrCreate(
+                ['slug' => Str::slug($subjectName . '-discussion')],
+                [
+                    'name' => $subjectName . ' Discussion',
+                    'description' => 'Discussion forum for ' . $subjectName . ' students.',
+                    'subject_id' => $subject->id,
+                    'icon' => $subject->icon,
+                    'is_universal' => false,
+                    'is_active' => true,
+                ]
+            );
         }
     }
 }
