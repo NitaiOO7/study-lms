@@ -4,7 +4,12 @@ FROM php:8.2-cli
 RUN apt-get update && apt-get install -y \
     git curl zip unzip \
     libpng-dev libonig-dev libxml2-dev libzip-dev libicu-dev \
-    libjpeg-dev libfreetype6-dev sqlite3 libsqlite3-dev
+    libjpeg-dev libfreetype6-dev sqlite3 libsqlite3-dev \
+    gnupg
+
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
 
 # Install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
@@ -19,8 +24,11 @@ WORKDIR /var/www
 # Copy project
 COPY . .
 
-# Install dependencies
+# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
+
+# Install Node dependencies and build assets
+RUN npm install && npm run build
 
 # Create SQLite DB
 RUN mkdir -p database && touch database/database.sqlite
