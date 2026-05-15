@@ -7,6 +7,7 @@
         <div class="sidebar-section">
             <div class="sidebar-title">Menu</div>
             <a href="{{ route('student.dashboard') }}" class="sidebar-link active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            <a href="{{ route('student.analytics') }}" class="sidebar-link"><i class="fas fa-chart-pie"></i> Performance Analytics</a>
             <a href="{{ route('student.browse') }}" class="sidebar-link"><i class="fas fa-compass"></i> Browse Courses</a>
             <a href="{{ route('student.my-courses') }}" class="sidebar-link"><i class="fas fa-book-reader"></i> My Learning</a>
         </div>

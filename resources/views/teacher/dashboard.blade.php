@@ -8,6 +8,7 @@
             <div class="sidebar-title">Menu</div>
             <a href="{{ route('teacher.dashboard') }}" class="sidebar-link active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
             <a href="{{ route('teacher.courses') }}" class="sidebar-link"><i class="fas fa-book"></i> My Courses</a>
+            <a href="{{ route('teacher.bundles') }}" class="sidebar-link"><i class="fas fa-cubes"></i> Course Bundles</a>
             <a href="{{ route('teacher.materials') }}" class="sidebar-link"><i class="fas fa-file-alt"></i> Study Materials</a>
             <a href="{{ route('teacher.test-series') }}" class="sidebar-link"><i class="fas fa-tasks"></i> Test Series</a>
         </div>
@@ -28,6 +29,19 @@
                 <div class="badge badge-warning" style="padding: 10px 16px; font-size: 0.85rem;"><i class="fas fa-exclamation-triangle"></i> Channel Pending Verification</div>
             @else
                 <div class="badge badge-success" style="padding: 10px 16px; font-size: 0.85rem;"><i class="fas fa-check-circle"></i> Verified Channel</div>
+            @endif
+
+            @if($activeSubscription)
+                <div style="background: rgba(var(--primary-rgb), 0.1); border: 1px solid var(--primary); padding: 8px 16px; border-radius: 50px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-crown" style="color: var(--primary);"></i>
+                    <span><strong>{{ $activeSubscription->plan->name }}</strong> expires in <strong>{{ now()->diffInDays($activeSubscription->expires_at) }} days</strong></span>
+                </div>
+            @else
+                <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; padding: 8px 16px; border-radius: 50px; font-size: 0.85rem; display: flex; align-items: center; gap: 10px; color: #ef4444;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span><strong>No Active Subscription</strong></span>
+                    <a href="{{ route('teacher.dashboard') }}" class="btn btn-sm" style="background: #ef4444; color: white; padding: 2px 10px; border-radius: 4px; font-size: 0.7rem;">Renew</a>
+                </div>
             @endif
         </div>
 
@@ -128,6 +142,13 @@
                         <div>
                             <div style="font-weight: 600; color: var(--text-primary);">Upload Material</div>
                             <div style="font-size: 0.75rem; color: var(--text-muted);">Share PDFs and video lectures</div>
+                        </div>
+                    </a>
+                    <a href="{{ route('teacher.bundles') }}" class="btn btn-secondary" style="justify-content: flex-start; padding: 16px; background: var(--dark-surface);">
+                        <div class="stat-icon" style="width: 40px; height: 40px; font-size: 1rem; background: rgba(var(--primary-rgb), 0.1); color: var(--primary); margin-right: 10px;"><i class="fas fa-cubes"></i></div>
+                        <div>
+                            <div style="font-weight: 600; color: var(--text-primary);">Manage Bundles</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">Collaborate and bundle courses</div>
                         </div>
                     </a>
                 </div>

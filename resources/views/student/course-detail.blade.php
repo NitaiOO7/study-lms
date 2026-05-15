@@ -40,7 +40,8 @@
                     
                     @if($isSubscribed)
                         <div class="alert alert-success" style="justify-content: center;"><i class="fas fa-check-circle"></i> You are enrolled</div>
-                        <a href="{{ route('student.test-series', $course->slug) }}" class="btn btn-primary btn-block btn-lg mt-3"><i class="fas fa-play"></i> Go to Tests</a>
+                        <a href="{{ route('student.learn', $course->slug) }}" class="btn btn-primary btn-block btn-lg mt-3" style="background: linear-gradient(135deg, #8b5cf6, #d946ef); border: none;"><i class="fas fa-play-circle"></i> Enter Learning Room</a>
+                        <a href="{{ route('student.test-series', $course->slug) }}" class="btn btn-secondary btn-block btn-lg mt-2"><i class="fas fa-laptop-code"></i> Go to Tests</a>
                     @else
                         @guest
                             <a href="{{ route('login') }}" class="btn btn-primary btn-block btn-lg"><i class="fas fa-sign-in-alt"></i> Login to Enroll</a>
@@ -88,15 +89,67 @@
                 @endif
             </div>
 
-            <div class="card mt-4">
-                <h3 style="font-size: 1.1rem; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-file-video text-info"></i> Study Materials Included
+            <div class="mt-5">
+                <h3 style="font-size: 1.3rem; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-video text-info"></i> Course Lessons
                 </h3>
-                <div style="display: flex; flex-wrap: wrap; gap: 12px;">
-                    <span class="badge" style="background: rgba(255,255,255,0.05); border: 1px solid var(--dark-border); padding: 8px 16px;"><i class="fas fa-file-pdf text-danger"></i> PDF Notes</span>
-                    <span class="badge" style="background: rgba(255,255,255,0.05); border: 1px solid var(--dark-border); padding: 8px 16px;"><i class="fas fa-video text-info"></i> Video Lectures</span>
-                    <span class="badge" style="background: rgba(255,255,255,0.05); border: 1px solid var(--dark-border); padding: 8px 16px;"><i class="fas fa-link text-primary"></i> Resource Links</span>
-                </div>
+                
+                @if($course->lessons->count() > 0)
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        @foreach($course->lessons as $lesson)
+                        <div style="display: flex; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; padding: 12px; gap: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                            <!-- Thumbnail -->
+                            <div style="width: 220px; height: 130px; background: #000; border-radius: 8px; flex-shrink: 0; position: relative;">
+                                @if($course->thumbnail)
+                                    <img src="{{ Storage::url($course->thumbnail) }}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.9; border-radius: 8px;">
+                                @else
+                                    <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+                                        <i class="fas fa-play-circle fa-3x"></i>
+                                    </div>
+                                @endif
+                                <div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">
+                                    Lesson {{ $lesson->sort_order }}
+                                </div>
+                            </div>
+                            
+                            <!-- Details -->
+                            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                                <h3 style="font-size: 1.1rem; margin-bottom: 8px; color: #6366f1; font-weight: 600;">{{ $lesson->title }}</h3>
+                                <div style="font-size: 0.85rem; color: #6b7280; margin-bottom: 16px; display: flex; gap: 16px;">
+                                    <span><i class="far fa-clock"></i> 1 hrs 12 mins</span>
+                                    <span>Created on: {{ $lesson->created_at->format('d M Y, h:i A') }}</span>
+                                </div>
+                                
+                                <div style="display: flex; gap: 12px;">
+                                    @if($isSubscribed || $lesson->is_free)
+                                        <a href="{{ route('student.learn', ['course' => $course->slug, 'lesson' => $lesson->id, 'view' => 'video']) }}" class="btn btn-sm" style="background: #8b5cf6; color: white; border-radius: 6px; padding: 6px 16px; text-decoration: none; border: none; font-weight: 500;">
+                                            <i class="fas fa-play"></i> Watch
+                                        </a>
+                                        
+                                        @if($lesson->pdf_path)
+                                        <a href="{{ route('student.learn', ['course' => $course->slug, 'lesson' => $lesson->id, 'view' => 'clean_pdf']) }}" class="btn btn-sm" style="background: white; border: 1px solid #e5e7eb; color: #8b5cf6; border-radius: 6px; padding: 6px 16px; text-decoration: none; font-weight: 500;">
+                                            <i class="far fa-file-pdf"></i> Without Annotation
+                                        </a>
+                                        @endif
+                                        
+                                        @if($lesson->annotated_pdf_path)
+                                        <a href="{{ route('student.learn', ['course' => $course->slug, 'lesson' => $lesson->id, 'view' => 'annotated_pdf']) }}" class="btn btn-sm" style="background: white; border: 1px solid #e5e7eb; color: #8b5cf6; border-radius: 6px; padding: 6px 16px; text-decoration: none; font-weight: 500;">
+                                            <i class="far fa-file-alt"></i> With Annotation
+                                        </a>
+                                        @endif
+                                    @else
+                                        <span class="badge" style="background: #f3f4f6; color: #9ca3af; padding: 6px 12px; border-radius: 6px;"><i class="fas fa-lock"></i> Premium Lesson</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="card">
+                        <p class="text-muted">No lessons uploaded yet.</p>
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -116,7 +169,16 @@
                 <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 16px; line-height: 1.5;">
                     {{ Str::limit($course->channel->description, 150) }}
                 </p>
-                <a href="{{ route('channel.profile', $course->channel->slug) }}" class="btn btn-secondary btn-block mt-4">View Full Profile</a>
+                @if($isSubscribed)
+                        <div class="mt-4 pt-3" style="border-top: 1px solid var(--dark-border);">
+                            <div style="font-weight: 600; margin-bottom: 8px;"><i class="fas fa-check-circle text-success"></i> Active Subscription</div>
+                            <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px;">Valid until {{ \Carbon\Carbon::parse($isSubscribed->expires_at ?? now()->addYear())->format('M d, Y') }}</div>
+                            <a href="{{ route('student.learn', $course->slug) }}" class="btn btn-primary btn-block mb-2" style="background: linear-gradient(135deg, #8b5cf6, #d946ef); border: none;"><i class="fas fa-play-circle"></i> Enter Learning Room</a>
+                            <a href="{{ route('student.test-series', $course->slug) }}" class="btn btn-secondary btn-block"><i class="fas fa-laptop-code"></i> Access Test Series</a>
+                        </div>
+                @else
+                    <a href="{{ route('channel.profile', $course->channel->slug) }}" class="btn btn-secondary btn-block mt-4">View Full Profile</a>
+                @endif
             </div>
         </div>
     </div>

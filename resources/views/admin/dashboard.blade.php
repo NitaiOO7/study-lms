@@ -11,6 +11,7 @@
             <a href="{{ route('admin.channels') }}" class="sidebar-link"><i class="fas fa-tv"></i> Channels</a>
             <a href="{{ route('admin.courses') }}" class="sidebar-link"><i class="fas fa-book"></i> Courses</a>
             <a href="{{ route('admin.subjects') }}" class="sidebar-link"><i class="fas fa-tags"></i> Subjects</a>
+            <a href="{{ route('admin.community') }}" class="sidebar-link"><i class="fas fa-comments"></i> Community Moderation</a>
         </div>
     </aside>
 

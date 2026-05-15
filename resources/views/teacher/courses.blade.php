@@ -59,7 +59,10 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <a href="#" class="btn btn-secondary btn-sm"><i class="fas fa-edit"></i> Edit</a>
+                                        <div style="display: flex; gap: 8px;">
+                                            <a href="{{ route('teacher.lessons', $course->id) }}" class="btn btn-primary btn-sm"><i class="fas fa-video"></i> Manage Lessons</a>
+                                            <a href="#" class="btn btn-secondary btn-sm"><i class="fas fa-edit"></i> Edit</a>
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach

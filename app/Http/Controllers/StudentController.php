@@ -11,11 +11,51 @@ use App\Models\TestAttempt;
 use App\Models\StudentAnswer;
 use App\Models\StudyMaterial;
 use App\Models\Channel;
+use App\Models\Lesson;
+use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class StudentController extends Controller
 {
+    protected $analyticsService;
+
+    public function __construct(AnalyticsService $analyticsService)
+    {
+        $this->analyticsService = $analyticsService;
+    }
+
+    public function analytics()
+    {
+        $user = Auth::user();
+        $overview = $this->analyticsService->getUserOverview($user);
+        
+        $attempts = $user->testAttempts()
+            ->where('status', 'completed')
+            ->with('section')
+            ->orderBy('completed_at')
+            ->get();
+
+        $trendLabels = $attempts->map(fn($a) => $a->completed_at->format('M d'));
+        $trendData = $attempts->pluck('percentage');
+
+        // Aggregate topic analysis across all tests
+        $topicAnalysis = \Illuminate\Support\Facades\DB::table('student_answers')
+            ->join('questions', 'student_answers.question_id', '=', 'questions.id')
+            ->join('topics', 'questions.topic_id', '=', 'topics.id')
+            ->join('test_attempts', 'student_answers.test_attempt_id', '=', 'test_attempts.id')
+            ->where('test_attempts.student_id', $user->id)
+            ->select('topics.name as topic', 
+                     \Illuminate\Support\Facades\DB::raw('count(*) as total'),
+                     \Illuminate\Support\Facades\DB::raw('sum(is_correct) as correct'))
+            ->groupBy('topics.name')
+            ->get();
+
+        $avgPercentile = $attempts->avg(fn($a) => $this->analyticsService->getAttemptRankings($a)['percentile']) ?? 0;
+
+        return view('student.analytics', compact('overview', 'trendLabels', 'trendData', 'topicAnalysis', 'avgPercentile'));
+    }
+
     public function dashboard()
     {
         $user = Auth::user();
@@ -62,7 +102,7 @@ class StudentController extends Controller
     // Course Detail
     public function courseDetail(Course $course)
     {
-        $course->load(['channel', 'subject', 'testSeries.sections', 'studyMaterials']);
+        $course->load(['channel', 'subject', 'testSeries.sections', 'studyMaterials', 'lessons']);
         $isSubscribed = false;
 
         if (Auth::check()) {
@@ -201,61 +241,82 @@ class StudentController extends Controller
             abort(403);
         }
 
+        $responses = json_decode($request->input('responses'), true) ?? [];
+        $timeSpent = $request->input('time_spent', 0);
+
         $section = $attempt->section;
         $questions = $section->questions()->with('options')->get();
 
-        $correct = 0;
-        $wrong = 0;
-        $skipped = 0;
+        $correctCount = 0;
+        $wrongCount = 0;
+        $skippedCount = 0;
         $totalScore = 0;
 
         foreach ($questions as $question) {
-            $selectedOptionId = $request->input('question_' . $question->id);
-
-            if (!$selectedOptionId) {
-                $skipped++;
-                StudentAnswer::updateOrCreate(
-                    ['test_attempt_id' => $attempt->id, 'question_id' => $question->id],
-                    ['is_correct' => false, 'marks_obtained' => 0]
-                );
+            $userResponse = $responses[$question->id] ?? null;
+            
+            if (!$userResponse || empty($userResponse['value'])) {
+                $skippedCount++;
                 continue;
             }
 
-            $correctOption = $question->options()->where('is_correct', true)->first();
-            $isCorrect = $correctOption && $correctOption->id == $selectedOptionId;
+            $isCorrect = false;
+            $marksObtained = 0;
+
+            if ($question->type === 'mcq') {
+                $correctOption = $question->options()->where('is_correct', true)->first();
+                $isCorrect = $correctOption && $correctOption->id == $userResponse['value'];
+            } 
+            elseif ($question->type === 'msq') {
+                $correctOptionIds = $question->options()->where('is_correct', true)->pluck('id')->toArray();
+                $userOptionIds = (array) $userResponse['value'];
+                sort($correctOptionIds);
+                sort($userOptionIds);
+                $isCorrect = $correctOptionIds === $userOptionIds;
+            } 
+            elseif ($question->type === 'nat') {
+                $correctOption = $question->options()->first(); // For NAT, we might store the answer in option_text or a specific field
+                // Simple equality check for now
+                $isCorrect = $correctOption && floatval($correctOption->option_text) == floatval($userResponse['value']);
+            }
 
             if ($isCorrect) {
-                $correct++;
-                $totalScore += $question->marks;
+                $correctCount++;
+                $marksObtained = $question->marks;
             } else {
-                $wrong++;
-                $totalScore -= $question->negative_marks;
+                $wrongCount++;
+                $marksObtained = -$question->negative_marks;
             }
+
+            $totalScore += $marksObtained;
 
             StudentAnswer::updateOrCreate(
                 ['test_attempt_id' => $attempt->id, 'question_id' => $question->id],
                 [
-                    'selected_option_id' => $selectedOptionId,
+                    'selected_option_id' => $question->type === 'mcq' ? $userResponse['value'] : null,
+                    'selected_option_ids' => $question->type === 'msq' ? $userResponse['value'] : null,
+                    'text_answer' => $question->type === 'nat' ? $userResponse['value'] : null,
                     'is_correct' => $isCorrect,
-                    'marks_obtained' => $isCorrect ? $question->marks : -$question->negative_marks,
+                    'marks_obtained' => $marksObtained,
+                    'time_spent_seconds' => 0, // We could track per-question time if we wanted
                 ]
             );
         }
 
-        $totalMarks = $questions->sum('marks');
-        $percentage = $totalMarks > 0 ? round(($totalScore / $totalMarks) * 100, 2) : 0;
+        $totalPossibleMarks = $questions->sum('marks');
+        $percentage = $totalPossibleMarks > 0 ? round(($totalScore / $totalPossibleMarks) * 100, 2) : 0;
 
         $attempt->update([
-            'attempted' => $correct + $wrong,
-            'correct' => $correct,
-            'wrong' => $wrong,
-            'skipped' => $skipped,
+            'attempted' => $correctCount + $wrongCount,
+            'correct' => $correctCount,
+            'wrong' => $wrongCount,
+            'skipped' => $skippedCount,
             'score' => max(0, $totalScore),
-            'total_marks' => $totalMarks,
+            'total_marks' => $totalPossibleMarks,
             'percentage' => max(0, $percentage),
             'status' => 'completed',
             'completed_at' => now(),
-            'time_taken_seconds' => now()->diffInSeconds($attempt->started_at),
+            'time_taken_seconds' => $timeSpent,
         ]);
 
         return redirect()->route('student.test-report', $attempt->id)->with('success', 'Test submitted successfully!');
@@ -291,5 +352,38 @@ class StudentController extends Controller
     {
         $materials = $course->studyMaterials()->latest()->paginate(20);
         return view('student.study-materials', compact('course', 'materials'));
+    }
+
+    // Learning Room (Videos & PDFs)
+    public function learn(Course $course, Lesson $lesson = null)
+    {
+        $isSubscribed = Subscription::where('student_id', Auth::id())
+            ->where('course_id', $course->id)
+            ->where('status', 'active')
+            ->exists();
+
+        // Allow access if subscribed, or course is free, or specific lesson is free (demo)
+        $canAccess = $isSubscribed || $course->is_free;
+
+        $lessons = $course->lessons()->orderBy('sort_order')->get();
+
+        if ($lessons->isEmpty()) {
+            return back()->with('error', 'No lessons available for this course yet.');
+        }
+
+        if (!$lesson) {
+            $lesson = $lessons->first();
+        } else {
+            if ($lesson->course_id !== $course->id) {
+                abort(404);
+            }
+        }
+
+        if (!$canAccess && !$lesson->is_free) {
+            return redirect()->route('student.course.detail', $course->slug)
+                ->with('error', 'Please subscribe to access this premium lesson.');
+        }
+
+        return view('student.learning-room', compact('course', 'lessons', 'lesson', 'isSubscribed'));
     }
 }

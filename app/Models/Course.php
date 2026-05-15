@@ -10,9 +10,14 @@ class Course extends Model
     use HasFactory;
 
     protected $fillable = [
-        'channel_id', 'subject_id', 'title', 'slug', 'description',
+        'channel_id', 'subject_id', 'branch_id', 'title', 'slug', 'description',
         'thumbnail', 'price', 'duration_days', 'level', 'is_free', 'is_published'
     ];
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
 
     public function channel()
     {
@@ -27,6 +32,11 @@ class Course extends Model
     public function subscriptions()
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    public function lessons()
+    {
+        return $this->hasMany(Lesson::class)->orderBy('sort_order');
     }
 
     public function testSeries()

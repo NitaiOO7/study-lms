@@ -12,9 +12,14 @@ class TestSeries extends Model
     protected $table = 'test_series';
 
     protected $fillable = [
-        'course_id', 'channel_id', 'title', 'slug', 'description',
+        'course_id', 'channel_id', 'branch_id', 'title', 'slug', 'description',
         'is_demo', 'is_published', 'total_marks', 'passing_marks', 'sort_order'
     ];
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
 
     public function course()
     {

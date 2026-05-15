@@ -10,9 +10,16 @@ class StudentAnswer extends Model
     use HasFactory;
 
     protected $fillable = [
-        'test_attempt_id', 'question_id', 'selected_option_id',
+        'test_attempt_id', 'question_id', 'selected_option_id', 'selected_option_ids',
         'text_answer', 'is_correct', 'marks_obtained', 'time_spent_seconds'
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'selected_option_ids' => 'array',
+        ];
+    }
 
     public function testAttempt()
     {
