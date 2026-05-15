@@ -5,7 +5,7 @@
     <div class="card animate-in" style="max-width: 450px; width: 100%; padding: 40px;">
         <div style="text-align: center; margin-bottom: 30px;">
             <div style="font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">EduVerse</div>
-            <p style="color: var(--text-muted); margin-top: 10px;">Welcome back! Please login to your account.</p>
+            <p style="color: var(--text-muted); margin-top: 10px;">Welcome back!! Please login to your account.</p>
         </div>
 
         <!-- Session Status -->
