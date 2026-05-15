@@ -10,9 +10,14 @@ class Question extends Model
     use HasFactory;
 
     protected $fillable = [
-        'section_id', 'question_text', 'question_image', 'type',
+        'section_id', 'topic_id', 'question_text', 'question_image', 'type',
         'marks', 'negative_marks', 'explanation', 'sort_order'
     ];
+
+    public function topic()
+    {
+        return $this->belongsTo(Topic::class);
+    }
 
     public function section()
     {

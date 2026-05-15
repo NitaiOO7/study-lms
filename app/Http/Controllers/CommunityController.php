@@ -14,10 +14,21 @@ class CommunityController extends Controller
     // Forum Groups List
     public function index()
     {
-        $universalGroup = ForumGroup::where('is_universal', true)->first();
-        $subjectGroups = ForumGroup::where('is_universal', false)->active()->with('subject')->get();
+        $user = Auth::user();
+        
+        $query = ForumGroup::active();
 
-        return view('community.index', compact('universalGroup', 'subjectGroups'));
+        if ($user->hasRole('teacher')) {
+            $query->whereIn('type', ['teacher', 'universal']);
+        } elseif ($user->hasRole('student')) {
+            $query->whereIn('type', ['student', 'universal']);
+        } else {
+            // Admin sees all
+        }
+
+        $groups = $query->with('subject')->get()->groupBy('type');
+
+        return view('community.index', compact('groups'));
     }
 
     // View Forum Group

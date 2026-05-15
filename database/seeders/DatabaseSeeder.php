@@ -191,5 +191,14 @@ class DatabaseSeeder extends Seeder
                 ]
             );
         }
+
+        // Subscription Plans
+        $this->call(SubscriptionPlanSeeder::class);
+
+        // Exam Hierarchy
+        $this->call(ExamHierarchySeeder::class);
+
+        // Community Groups
+        $this->call(ForumGroupSeeder::class);
     }
 }

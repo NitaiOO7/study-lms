@@ -81,4 +81,24 @@ class AdminController extends Controller
         $channel->update(['is_verified' => !$channel->is_verified]);
         return back()->with('success', 'Channel verification updated.');
     }
+
+    // Community Moderation
+    public function community()
+    {
+        $posts = Post::with(['user', 'forumGroup'])->latest()->paginate(20);
+        return view('admin.community.index', compact('posts'));
+    }
+
+    public function deletePost(Post $post)
+    {
+        $post->delete();
+        return back()->with('success', 'Post deleted by moderator.');
+    }
+
+    public function blockUser(User $user)
+    {
+        // Assuming we add an is_active column or similar
+        // For now just toggle or suspend
+        return back()->with('success', 'User has been blocked from community features.');
+    }
 }

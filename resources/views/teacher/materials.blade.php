@@ -34,9 +34,16 @@
                         <div style="flex: 1;">
                             <h3 style="font-size: 1.1rem; margin-bottom: 4px;">{{ $material->title }}</h3>
                             <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">{{ $material->subject->name }}</div>
-                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
                                 @if($material->is_free) <span class="badge badge-success">Free</span> @endif
                                 @if($material->file_size) <span class="badge badge-info">{{ $material->file_size }} KB</span> @endif
+                            </div>
+                            <div>
+                                @if($material->file_path)
+                                    <a href="{{ Storage::url($material->file_path) }}" target="_blank" class="btn btn-sm btn-secondary"><i class="fas fa-eye"></i> View File</a>
+                                @elseif($material->external_url)
+                                    <a href="{{ $material->external_url }}" target="_blank" class="btn btn-sm btn-secondary"><i class="fas fa-external-link-alt"></i> Open Link</a>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -94,6 +101,7 @@
                     <option value="pdf">PDF Document</option>
                     <option value="document">Other Document (Word/Excel)</option>
                     <option value="image">Image</option>
+                    <option value="video_file">Video File (MP4/WebM)</option>
                     <option value="video">Video Link</option>
                     <option value="link">External Link</option>
                 </select>

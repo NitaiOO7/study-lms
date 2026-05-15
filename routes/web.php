@@ -34,6 +34,16 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/subjects', [AdminController::class, 'subjects'])->name('subjects');
     Route::post('/channel/{channel}/toggle', [AdminController::class, 'toggleChannelStatus'])->name('channel.toggle');
     Route::post('/channel/{channel}/verify', [AdminController::class, 'verifyChannel'])->name('channel.verify');
+
+    // Subscriptions
+    Route::get('/subscriptions', [\App\Http\Controllers\Admin\SubscriptionController::class, 'index'])->name('subscriptions');
+    Route::get('/plans', [\App\Http\Controllers\Admin\SubscriptionController::class, 'plans'])->name('plans');
+    Route::get('/payments', [\App\Http\Controllers\Admin\SubscriptionController::class, 'payments'])->name('payments');
+
+    // Community Moderation
+    Route::get('/community', [AdminController::class, 'community'])->name('community');
+    Route::delete('/community/post/{post}', [AdminController::class, 'deletePost'])->name('community.post.delete');
+    Route::post('/users/{user}/block', [AdminController::class, 'blockUser'])->name('users.block');
 });
 
 // ==========================================
@@ -48,6 +58,11 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('/courses/create', [TeacherController::class, 'createCourse'])->name('courses.create');
     Route::post('/courses', [TeacherController::class, 'storeCourse'])->name('courses.store');
 
+    // Lessons
+    Route::get('/course/{course}/lessons', [TeacherController::class, 'lessons'])->name('lessons');
+    Route::get('/course/{course}/lessons/create', [TeacherController::class, 'createLesson'])->name('lessons.create');
+    Route::post('/course/{course}/lessons', [TeacherController::class, 'storeLesson'])->name('lessons.store');
+
     // Study Materials
     Route::get('/materials', [TeacherController::class, 'materials'])->name('materials');
     Route::post('/materials', [TeacherController::class, 'storeMaterial'])->name('materials.store');
@@ -59,6 +74,17 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
     Route::get('/test-series/{testSeries}/sections', [TeacherController::class, 'manageSections'])->name('test-series.sections');
     Route::post('/test-series/{testSeries}/sections', [TeacherController::class, 'storeSection'])->name('sections.store');
     Route::post('/sections/{section}/questions', [TeacherController::class, 'storeQuestion'])->name('questions.store');
+
+    // Subscriptions & Checkout
+    Route::get('/checkout/{plan:slug}', [\App\Http\Controllers\CheckoutController::class, 'show'])->name('checkout');
+    Route::post('/checkout/{plan:slug}', [\App\Http\Controllers\CheckoutController::class, 'process'])->name('checkout.process');
+    Route::match(['get', 'post'], '/payment/callback/{gateway}', [\App\Http\Controllers\CheckoutController::class, 'callback'])->name('payment.callback');
+
+    // Course Bundles & Collaboration
+    Route::get('/bundles', [TeacherController::class, 'bundles'])->name('bundles');
+    Route::get('/bundles/create', [TeacherController::class, 'createBundle'])->name('bundles.create');
+    Route::post('/bundles', [TeacherController::class, 'storeBundle'])->name('bundles.store');
+    Route::post('/bundles/collaboration/{collaboration}/accept', [TeacherController::class, 'acceptCollaboration'])->name('bundles.collaboration.accept');
 });
 
 // ==========================================
@@ -66,6 +92,7 @@ Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')
 // ==========================================
 Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentController::class, 'dashboard'])->name('dashboard');
+    Route::get('/analytics', [StudentController::class, 'analytics'])->name('analytics');
     Route::get('/browse', [StudentController::class, 'browseCourses'])->name('browse');
     Route::get('/course/{course:slug}', [StudentController::class, 'courseDetail'])->name('course.detail');
     Route::post('/course/{course}/subscribe', [StudentController::class, 'subscribeCourse'])->name('course.subscribe');
@@ -80,6 +107,9 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
 
     // Study Materials
     Route::get('/course/{course}/materials', [StudentController::class, 'studyMaterials'])->name('materials');
+    
+    // Learning Room (Videos & PDFs)
+    Route::get('/course/{course:slug}/learn/{lesson?}', [StudentController::class, 'learn'])->name('learn');
 });
 
 // ==========================================
@@ -87,8 +117,8 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
 // ==========================================
 Route::middleware(['auth'])->prefix('community')->name('community.')->group(function () {
     Route::get('/', [CommunityController::class, 'index'])->name('index');
-    Route::get('/group/{forumGroup:slug}', [CommunityController::class, 'showGroup'])->name('group');
-    Route::post('/group/{forumGroup:slug}/post', [CommunityController::class, 'storePost'])->name('post.store');
+    Route::get('/group/{forumGroup:slug}', [CommunityController::class, 'showGroup'])->name('group')->middleware('forum.access');
+    Route::post('/group/{forumGroup:slug}/post', [CommunityController::class, 'storePost'])->name('post.store')->middleware('forum.access');
     Route::get('/post/{post}', [CommunityController::class, 'showPost'])->name('post.show');
     Route::post('/post/{post}/comment', [CommunityController::class, 'storeComment'])->name('comment.store');
     Route::post('/comment/{comment}/answer', [CommunityController::class, 'markAsAnswer'])->name('comment.answer');

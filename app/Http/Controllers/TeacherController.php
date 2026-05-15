@@ -25,7 +25,8 @@ class TeacherController extends Controller
         $channel = $user->channel;
 
         if (!$channel) {
-            return view('teacher.create-channel');
+            $plans = \App\Models\SubscriptionPlan::where('is_active', true)->get();
+            return view('teacher.create-channel', compact('plans'));
         }
 
         $stats = [
@@ -40,7 +41,13 @@ class TeacherController extends Controller
             ->whereIn('course_id', $channel->courses()->pluck('id'))
             ->latest()->take(5)->get();
 
-        return view('teacher.dashboard', compact('channel', 'stats', 'recentSubscriptions'));
+        $activeSubscription = \App\Models\ChannelSubscription::where('channel_id', $channel->id)
+            ->where('status', 'active')
+            ->with('plan')
+            ->latest()
+            ->first();
+
+        return view('teacher.dashboard', compact('channel', 'stats', 'recentSubscriptions', 'activeSubscription'));
     }
 
     // Channel Management
@@ -50,21 +57,40 @@ class TeacherController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'logo' => 'nullable|image|max:2048',
+            'plan_id' => 'required|exists:subscription_plans,id',
         ]);
+
+        $plan = \App\Models\SubscriptionPlan::find($request->plan_id);
 
         $data = [
             'teacher_id' => Auth::id(),
             'name' => $request->name,
             'slug' => Str::slug($request->name) . '-' . Str::random(5),
             'description' => $request->description,
+            'is_active' => $plan->price == 0, // Active immediately only if free
         ];
 
         if ($request->hasFile('logo')) {
             $data['logo'] = $request->file('logo')->store('channels/logos', 'public');
         }
 
-        Channel::create($data);
-        return redirect()->route('teacher.dashboard')->with('success', 'Channel created successfully!');
+        $channel = Channel::create($data);
+
+        if ($plan->price > 0) {
+            return redirect()->route('teacher.checkout', $plan->slug)->with('info', 'Please complete payment to activate your channel.');
+        }
+
+        // Create free subscription record
+        \App\Models\ChannelSubscription::create([
+            'channel_id' => $channel->id,
+            'plan_id' => $plan->id,
+            'status' => 'active',
+            'starts_at' => now(),
+            'expires_at' => now()->addDays($plan->duration_days),
+            'amount_paid' => 0,
+        ]);
+
+        return redirect()->route('teacher.dashboard')->with('success', 'Channel created successfully with Basic Plan!');
     }
 
     // Course Management
@@ -133,13 +159,18 @@ class TeacherController extends Controller
             'title' => 'required|string|max:255',
             'subject_id' => 'required|exists:subjects,id',
             'course_id' => 'nullable|exists:courses,id',
-            'type' => 'required|in:pdf,video,document,link,image',
-            'file' => 'nullable|file|max:51200', // 50MB
+            'type' => 'required|in:pdf,video,document,link,image,video_file',
+            'file' => 'nullable|file|max:102400', // 100MB
             'external_url' => 'nullable|url',
             'description' => 'nullable|string',
         ]);
 
         $channel = Auth::user()->channel;
+
+        $type = $request->type;
+        if ($type === 'video_file') {
+            $type = 'video'; // Map to valid ENUM value
+        }
 
         $data = [
             'channel_id' => $channel->id,
@@ -147,7 +178,7 @@ class TeacherController extends Controller
             'course_id' => $request->course_id,
             'title' => $request->title,
             'description' => $request->description,
-            'type' => $request->type,
+            'type' => $type,
             'external_url' => $request->external_url,
             'is_free' => $request->has('is_free'),
         ];
@@ -247,7 +278,7 @@ class TeacherController extends Controller
 
         $request->validate([
             'question_text' => 'required|string',
-            'type' => 'required|in:mcq,true_false,fill_blank',
+            'type' => 'required|in:mcq,msq,nat',
             'marks' => 'required|integer|min:1',
             'negative_marks' => 'nullable|numeric|min:0',
             'explanation' => 'nullable|string',
@@ -278,6 +309,130 @@ class TeacherController extends Controller
         }
 
         return back()->with('success', 'Question added!');
+    }
+
+    // Lesson Management
+    public function lessons(Course $course)
+    {
+        $this->authorizeChannel($course->channel_id);
+        $lessons = $course->lessons()->latest()->paginate(20);
+        return view('teacher.lessons', compact('course', 'lessons'));
+    }
+
+    public function createLesson(Course $course)
+    {
+        $this->authorizeChannel($course->channel_id);
+        return view('teacher.create-lesson', compact('course'));
+    }
+
+    public function storeLesson(Request $request, Course $course)
+    {
+        $this->authorizeChannel($course->channel_id);
+
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'video_url' => 'nullable|url',
+            'video_file' => 'nullable|mimes:mp4,webm|max:102400', // 100MB
+            'pdf_file' => 'nullable|file|mimes:pdf|max:10240',
+            'annotated_pdf_file' => 'nullable|file|mimes:pdf|max:10240',
+            'description' => 'nullable|string',
+        ]);
+
+        $data = [
+            'course_id' => $course->id,
+            'title' => $request->title,
+            'description' => $request->description,
+            'video_url' => $request->video_url,
+            'sort_order' => $course->lessons()->count() + 1,
+            'is_free' => $request->has('is_free'),
+        ];
+
+        if ($request->hasFile('video_file')) {
+            $data['video_path'] = $request->file('video_file')->store('lessons/videos', 'public');
+        }
+
+        if ($request->hasFile('pdf_file')) {
+            $data['pdf_path'] = $request->file('pdf_file')->store('lessons/pdfs', 'public');
+        }
+
+        if ($request->hasFile('annotated_pdf_file')) {
+            $data['annotated_pdf_path'] = $request->file('annotated_pdf_file')->store('lessons/pdfs/annotated', 'public');
+        }
+
+        \App\Models\Lesson::create($data);
+
+        return redirect()->route('teacher.lessons', $course->id)->with('success', 'Lesson added successfully!');
+    }
+
+    // Bundle Management
+    public function bundles()
+    {
+        $bundles = \App\Models\CourseBundle::where('creator_id', Auth::id())
+            ->with(['courses', 'collaborations.teacher'])
+            ->latest()
+            ->paginate(12);
+        
+        $receivedCollaborations = \App\Models\BundleCollaboration::where('teacher_id', Auth::id())
+            ->where('status', 'pending')
+            ->with('bundle')
+            ->get();
+
+        return view('teacher.bundles.index', compact('bundles', 'receivedCollaborations'));
+    }
+
+    public function createBundle()
+    {
+        $courses = \App\Models\Course::where('channel_id', Auth::user()->channel->id)->get();
+        $otherTeachers = \App\Models\User::role('teacher')->where('id', '!=', Auth::id())->get();
+        
+        return view('teacher.bundles.create', compact('courses', 'otherTeachers'));
+    }
+
+    public function storeBundle(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'bundle_price' => 'required|numeric|min:0',
+            'course_ids' => 'required|array|min:1',
+            'collaborators' => 'nullable|array',
+            'collaborators.*.teacher_id' => 'required|exists:users,id',
+            'collaborators.*.share' => 'required|integer|min:0|max:100',
+        ]);
+
+        $originalPrice = \App\Models\Course::whereIn('id', $request->course_ids)->sum('price');
+
+        $bundle = \App\Models\CourseBundle::create([
+            'creator_id' => Auth::id(),
+            'title' => $request->title,
+            'slug' => \Illuminate\Support\Str::slug($request->title) . '-' . uniqid(),
+            'description' => $request->description,
+            'original_price' => $originalPrice,
+            'bundle_price' => $request->bundle_price,
+            'is_published' => true,
+        ]);
+
+        $bundle->courses()->attach($request->course_ids);
+
+        if ($request->collaborators) {
+            foreach ($request->collaborators as $collab) {
+                \App\Models\BundleCollaboration::create([
+                    'bundle_id' => $bundle->id,
+                    'teacher_id' => $collab['teacher_id'],
+                    'revenue_share_percentage' => $collab['share'],
+                    'status' => 'pending',
+                ]);
+            }
+        }
+
+        return redirect()->route('teacher.bundles')->with('success', 'Course bundle created and collaboration invites sent!');
+    }
+
+    public function acceptCollaboration(\App\Models\BundleCollaboration $collaboration)
+    {
+        if ($collaboration->teacher_id !== Auth::id()) abort(403);
+        $collaboration->update(['status' => 'accepted']);
+        return back()->with('success', 'Collaboration accepted!');
     }
 
     // Helper
