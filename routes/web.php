@@ -6,6 +6,10 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\CommunityController;
+use App\Http\Controllers\LessonProgressController;
+use App\Http\Controllers\TelegramWebhookController;
+use App\Http\Controllers\MaterialPlayerController;
+use App\Http\Controllers\MaterialStreamController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 
 // ==========================================
@@ -14,6 +18,12 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/channel/{channel:slug}', [HomeController::class, 'channelProfile'])->name('channel.profile');
 Route::get('/subject/{subject:slug}', [HomeController::class, 'subjectCourses'])->name('subject.courses');
+Route::post('/telegram/webhook', TelegramWebhookController::class)->name('telegram.webhook');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/materials/{studyMaterial}/watch', [MaterialPlayerController::class, 'show'])->name('materials.watch');
+    Route::get('/materials/{studyMaterial}/stream', [MaterialStreamController::class, 'show'])->name('materials.stream');
+});
 
 // Post-login redirect
 Route::get('/dashboard', function () {
@@ -110,6 +120,7 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
     
     // Learning Room (Videos & PDFs)
     Route::get('/course/{course:slug}/learn/{lesson?}', [StudentController::class, 'learn'])->name('learn');
+    Route::post('/lesson/{lesson}/progress', [LessonProgressController::class, 'store'])->name('lesson.progress');
 });
 
 // ==========================================

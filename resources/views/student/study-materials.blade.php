@@ -26,7 +26,9 @@
                         <h3 style="font-size: 1.1rem; margin-bottom: 4px;">{{ $material->title }}</h3>
                         <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">{{ $material->description }}</div>
                         
-                        @if($material->file_path)
+                        @if($material->isVideo())
+                            <a href="{{ route('materials.watch', $material) }}" class="btn btn-secondary btn-sm btn-block"><i class="fas fa-play"></i> Watch Video</a>
+                        @elseif($material->file_path)
                             <a href="{{ Storage::url($material->file_path) }}" target="_blank" class="btn btn-secondary btn-sm btn-block"><i class="fas fa-download"></i> Download</a>
                         @elseif($material->external_url)
                             <a href="{{ $material->external_url }}" target="_blank" class="btn btn-secondary btn-sm btn-block"><i class="fas fa-external-link-alt"></i> Open Link</a>
