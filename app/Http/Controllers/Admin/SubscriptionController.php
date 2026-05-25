@@ -8,7 +8,6 @@ use Illuminate\Http\Request;
 use App\Models\ChannelSubscription;
 use App\Models\SubscriptionPlan;
 use App\Models\Payment;
-use Illuminate\Http\Request;
 
 class SubscriptionController extends Controller
 {

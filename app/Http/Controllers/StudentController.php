@@ -12,6 +12,7 @@ use App\Models\StudentAnswer;
 use App\Models\StudyMaterial;
 use App\Models\Channel;
 use App\Models\Lesson;
+use App\Models\LessonProgress;
 use App\Services\AnalyticsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -365,7 +366,11 @@ class StudentController extends Controller
         // Allow access if subscribed, or course is free, or specific lesson is free (demo)
         $canAccess = $isSubscribed || $course->is_free;
 
-        $lessons = $course->lessons()->orderBy('sort_order')->get();
+        $course->loadMissing('channel.teacher');
+        $lessons = $course->lessons()
+            ->with(['progressForStudent' => fn ($query) => $query->where('student_id', Auth::id())])
+            ->orderBy('sort_order')
+            ->get();
 
         if ($lessons->isEmpty()) {
             return back()->with('error', 'No lessons available for this course yet.');
@@ -384,6 +389,11 @@ class StudentController extends Controller
                 ->with('error', 'Please subscribe to access this premium lesson.');
         }
 
-        return view('student.learning-room', compact('course', 'lessons', 'lesson', 'isSubscribed'));
+        $progress = LessonProgress::firstOrNew([
+            'student_id' => Auth::id(),
+            'lesson_id' => $lesson->id,
+        ]);
+
+        return view('student.learning-room', compact('course', 'lessons', 'lesson', 'isSubscribed', 'progress'));
     }
 }

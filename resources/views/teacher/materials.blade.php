@@ -39,7 +39,9 @@
                                 @if($material->file_size) <span class="badge badge-info">{{ $material->file_size }} KB</span> @endif
                             </div>
                             <div>
-                                @if($material->file_path)
+                                @if($material->isVideo())
+                                    <a href="{{ route('materials.watch', $material) }}" class="btn btn-sm btn-secondary"><i class="fas fa-play"></i> Watch Video</a>
+                                @elseif($material->file_path)
                                     <a href="{{ Storage::url($material->file_path) }}" target="_blank" class="btn btn-sm btn-secondary"><i class="fas fa-eye"></i> View File</a>
                                 @elseif($material->external_url)
                                     <a href="{{ $material->external_url }}" target="_blank" class="btn btn-sm btn-secondary"><i class="fas fa-external-link-alt"></i> Open Link</a>
