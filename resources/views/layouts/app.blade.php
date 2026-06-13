@@ -169,6 +169,7 @@
                     <a href="{{ route('student.my-courses') }}" class="nav-link {{ request()->routeIs('student.my-courses') ? 'active' : '' }}"><i class="fas fa-book"></i> My Courses</a>
                 @endif
                 <a href="{{ route('community.index') }}" class="nav-link {{ request()->routeIs('community.*') ? 'active' : '' }}"><i class="fas fa-comments"></i> Community</a>
+                <a href="{{ route('assistant.index') }}" class="nav-link {{ request()->routeIs('assistant.*') ? 'active' : '' }}"><i class="fas fa-robot"></i> AI Assistant</a>
                 <div style="display:flex;align-items:center;gap:10px;margin-left:8px;">
                     <div class="avatar">{{ substr(auth()->user()->name, 0, 1) }}</div>
                     <form method="POST" action="{{ route('logout') }}"><@csrf
