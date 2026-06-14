@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AiAssistantController;
 use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\CommunityController;
@@ -32,6 +33,14 @@ Route::get('/dashboard', function () {
     if ($user->hasRole('teacher')) return redirect()->route('teacher.dashboard');
     return redirect()->route('student.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+// ==========================================
+// AI ASSISTANT ROUTES
+// ==========================================
+Route::middleware(['auth'])->prefix('assistant')->name('assistant.')->group(function () {
+    Route::get('/', [AiAssistantController::class, 'index'])->name('index');
+    Route::post('/message', [AiAssistantController::class, 'message'])->name('message');
+});
 
 // ==========================================
 // ADMIN ROUTES
