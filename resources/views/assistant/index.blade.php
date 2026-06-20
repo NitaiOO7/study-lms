@@ -53,6 +53,66 @@
         margin-top: 20px;
     }
 
+    .history-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 22px;
+    }
+
+    .history-title {
+        color: var(--text-secondary);
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .history-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 10px;
+        max-height: 240px;
+        overflow-y: auto;
+        padding-right: 2px;
+    }
+
+    .history-item {
+        width: 100%;
+        padding: 11px 12px;
+        background: var(--dark-surface);
+        border: 1px solid var(--dark-border);
+        border-radius: 10px;
+        color: var(--text-primary);
+        text-align: left;
+        cursor: pointer;
+        font: inherit;
+        transition: all 0.2s ease;
+    }
+
+    .history-item:hover,
+    .history-item.active {
+        border-color: var(--primary);
+        background: rgba(99, 102, 241, 0.14);
+    }
+
+    .history-item-title {
+        display: block;
+        font-size: 0.86rem;
+        font-weight: 700;
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .history-item-meta {
+        display: block;
+        color: var(--text-muted);
+        font-size: 0.74rem;
+        margin-top: 4px;
+    }
+
     .model-picker {
         margin-top: 20px;
     }
@@ -273,6 +333,20 @@
             Ask about courses, tests, lessons, platform workflows, or admin tasks. The assistant uses your current role to answer with the right context.
         </p>
 
+        <button type="button" class="btn btn-primary btn-block" id="new-chat-btn" style="margin-top:18px;">
+            <i class="fas fa-plus"></i> New Chat
+        </button>
+
+        <div class="history-header">
+            <div class="history-title">Conversations</div>
+            <button type="button" class="btn btn-secondary btn-sm" id="refresh-history-btn" title="Refresh conversations" aria-label="Refresh conversations">
+                <i class="fas fa-rotate"></i>
+            </button>
+        </div>
+        <div class="history-list" id="history-list">
+            <div class="assistant-copy">Loading conversations...</div>
+        </div>
+
         <div class="suggestion-list" aria-label="Suggested questions">
             @foreach($suggestions as $suggestion)
                 <button type="button" class="suggestion-btn" data-suggestion="{{ $suggestion }}">
@@ -333,7 +407,15 @@
         const status = document.getElementById('assistant-status');
         const error = document.getElementById('assistant-error');
         const modelSelect = document.getElementById('model-select');
+        const historyList = document.getElementById('history-list');
+        const newChatBtn = document.getElementById('new-chat-btn');
+        const refreshHistoryBtn = document.getElementById('refresh-history-btn');
         const csrf = document.querySelector('input[name="_token"]').value;
+        const routes = {
+            message: @json(route('assistant.message', [], false)),
+            sessions: @json(route('assistant.sessions', [], false)),
+            sessionShow: @json(route('assistant.sessions.show', ['sessionToken' => '__SESSION_TOKEN__'], false)),
+        };
         let sessionToken = null;
         let isSending = false;
 
@@ -364,6 +446,11 @@
             scrollToBottom();
 
             return row;
+        };
+
+        const resetMessages = () => {
+            messages.innerHTML = '';
+            addMessage('assistant', 'Hi {{ auth()->user()->name }}. Ask me anything about EduVerse LMS, and I will help you test the assistant flow.');
         };
 
         const addTyping = () => {
@@ -397,7 +484,7 @@
             input.value = '';
 
             try {
-                const response = await fetch('{{ route('assistant.message') }}', {
+                const response = await fetch(routes.message, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -421,6 +508,7 @@
                 removeTyping();
                 addMessage('assistant', data.response || 'No response returned.');
                 status.textContent = data.model ? `Ready - ${data.model}` : 'Ready';
+                loadSessions();
             } catch (exception) {
                 removeTyping();
                 setError(exception.message || 'Something went wrong while contacting the assistant.');
@@ -430,6 +518,85 @@
                     status.textContent = 'Ready';
                 }
                 input.focus();
+            }
+        };
+
+        const renderSessions = (sessions) => {
+            if (!sessions.length) {
+                historyList.innerHTML = '<div class="assistant-copy">No saved conversations yet.</div>';
+                return;
+            }
+
+            historyList.innerHTML = '';
+
+            sessions.forEach((session) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `history-item ${session.token === sessionToken ? 'active' : ''}`;
+                button.dataset.token = session.token;
+
+                const title = document.createElement('span');
+                title.className = 'history-item-title';
+                title.textContent = session.title;
+
+                const meta = document.createElement('span');
+                meta.className = 'history-item-meta';
+                meta.textContent = `${session.role} - ${session.updated_at || 'recently'}`;
+
+                button.appendChild(title);
+                button.appendChild(meta);
+                button.addEventListener('click', () => loadSession(session.token));
+                historyList.appendChild(button);
+            });
+        };
+
+        const loadSessions = async () => {
+            try {
+                const response = await fetch(routes.sessions, {
+                    headers: { 'Accept': 'application/json' },
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Could not load conversations.');
+                }
+
+                renderSessions(data.sessions || []);
+            } catch (exception) {
+                historyList.innerHTML = `<div class="error-note visible">${exception.message}</div>`;
+            }
+        };
+
+        const loadSession = async (token) => {
+            if (!token || isSending) return;
+
+            setError();
+            status.textContent = 'Loading chat';
+
+            try {
+                const response = await fetch(routes.sessionShow.replace('__SESSION_TOKEN__', encodeURIComponent(token)), {
+                    headers: { 'Accept': 'application/json' },
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Could not load this conversation.');
+                }
+
+                sessionToken = data.session.token;
+                messages.innerHTML = '';
+
+                data.messages.forEach((message) => {
+                    if (message.role === 'user' || message.role === 'assistant') {
+                        addMessage(message.role, message.content);
+                    }
+                });
+
+                status.textContent = data.session.model ? `Ready - ${data.session.model}` : 'Ready';
+                loadSessions();
+            } catch (exception) {
+                setError(exception.message || 'Something went wrong while loading the conversation.');
+                status.textContent = 'Ready';
             }
         };
 
@@ -451,6 +618,18 @@
             });
         });
 
+        newChatBtn.addEventListener('click', () => {
+            sessionToken = null;
+            status.textContent = 'Ready';
+            setError();
+            resetMessages();
+            loadSessions();
+            input.focus();
+        });
+
+        refreshHistoryBtn.addEventListener('click', loadSessions);
+
+        loadSessions();
         scrollToBottom();
     })();
 </script>

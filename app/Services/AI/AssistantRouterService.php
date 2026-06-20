@@ -88,6 +88,7 @@ class AssistantRouterService
             'content' => $response,
             'model'   => $this->groq->getLastModel() ?? $requestedModel,
         ]);
+        $session->touch();
 
         return [
             'response'      => $response,
