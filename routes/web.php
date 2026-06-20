@@ -40,6 +40,8 @@ Route::get('/dashboard', function () {
 Route::middleware(['auth'])->prefix('assistant')->name('assistant.')->group(function () {
     Route::get('/', [AiAssistantController::class, 'index'])->name('index');
     Route::post('/message', [AiAssistantController::class, 'message'])->name('message');
+    Route::get('/sessions', [AiAssistantController::class, 'sessions'])->name('sessions');
+    Route::get('/sessions/{sessionToken}', [AiAssistantController::class, 'showSession'])->name('sessions.show');
 });
 
 // ==========================================
